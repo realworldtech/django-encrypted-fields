@@ -1,17 +1,13 @@
-
 import os
-import types
+import binascii
 
 import django
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import six
+from django.utils.encoding import force_text
 from django.utils.functional import cached_property
-
-try:
-    from django.utils.encoding import smart_text
-except ImportError:
-    from django.utils.encoding import smart_str as smart_text
 
 from keyczar import keyczar
 
@@ -163,21 +159,20 @@ class EncryptedFieldMixin(object):
         return self.to_python(value)
 
     def to_python(self, value):
-        if value is None or not isinstance(value, types.StringTypes):
+        if value is None or not isinstance(value, six.string_types):
             return value
 
         if self.prefix and value.startswith(self.prefix):
             value = value[len(self.prefix):]
 
         try:
-            value = self.crypter().decrypt(value)
-            value = value.decode('unicode_escape')
+            value = force_text(self.crypter().decrypt(value))
         except keyczar.errors.KeyczarError:
             pass
         except UnicodeEncodeError:
             pass
         except binascii.Error:
-            pass        
+            pass
 
         return super(EncryptedFieldMixin, self).to_python(value)
 
@@ -187,11 +182,7 @@ class EncryptedFieldMixin(object):
         if value is None or value == '' or self.decrypt_only:
             return value
 
-        if isinstance(value, types.StringTypes):
-            value = value.encode('unicode_escape')
-            value = value.encode('ascii')
-        else:
-            value = str(value)
+        value = force_text(value)
 
         return self.prefix + self.crypter().encrypt(value)
 
@@ -228,6 +219,7 @@ class EncryptedDateTimeField(EncryptedFieldMixin, models.DateTimeField):
 
 
 class EncryptedIntegerField(EncryptedFieldMixin, models.IntegerField):
+
     @cached_property
     def validators(self):
         """
