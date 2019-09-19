@@ -159,7 +159,7 @@ class EncryptedFieldMixin(object):
     def load_crypter(self):
         self._crypter = self._crypter_klass(self.keydir)
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, expression, connection, **kwargs):
         return self.to_python(value)
 
     def to_python(self, value):
