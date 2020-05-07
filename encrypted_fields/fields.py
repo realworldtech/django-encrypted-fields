@@ -1,11 +1,10 @@
 import os
 import binascii
-
+import six
 import django
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.utils import six
 from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 
@@ -90,34 +89,31 @@ class EncryptedFieldMixin(object):
                         being written to the database.
         """
         # Allow for custom class extensions of Keyczar.
-        self._crypter_klass = kwargs.pop('crypter_klass', KeyczarWrapper)
+        self._crypter_klass = kwargs.pop("crypter_klass", KeyczarWrapper)
 
-        self.keyname = kwargs.pop('keyname', None)
+        self.keyname = kwargs.pop("keyname", None)
 
         # If settings.DEFAULT_KEY_DIRECTORY, then the key
         # is located in DEFAULT_KEY_DIRECTORY/keyname
         if self.keyname:
-            if hasattr(settings, 'DEFAULT_KEY_DIRECTORY'):
-                self.keydir = os.path.join(
-                    settings.DEFAULT_KEY_DIRECTORY,
-                    self.keyname
-                )
+            if hasattr(settings, "DEFAULT_KEY_DIRECTORY"):
+                self.keydir = os.path.join(settings.DEFAULT_KEY_DIRECTORY, self.keyname)
             else:
                 raise ImproperlyConfigured(
-                    'You must set settings.DEFAULT_KEY_DIRECTORY'
-                    'when using the keyname kwarg'
+                    "You must set settings.DEFAULT_KEY_DIRECTORY"
+                    "when using the keyname kwarg"
                 )
 
         # If the keyname is not defined on a per-field
         # basis, then check for the global data encryption key.
-        if not self.keyname and hasattr(settings, 'ENCRYPTED_FIELDS_KEYDIR'):
+        if not self.keyname and hasattr(settings, "ENCRYPTED_FIELDS_KEYDIR"):
             self.keydir = settings.ENCRYPTED_FIELDS_KEYDIR
 
         # If we still do not have a keydir, then raise an exception
         if not self.keydir:
             raise ImproperlyConfigured(
-                'You must set settings.ENCRYPTED_FIELDS_KEYDIR '
-                'or name a key with kwarg `keyname`'
+                "You must set settings.ENCRYPTED_FIELDS_KEYDIR "
+                "or name a key with kwarg `keyname`"
             )
 
         # The name of the keyczar key without path for logging purposes.
@@ -125,24 +121,20 @@ class EncryptedFieldMixin(object):
 
         # Prefix encrypted data with a static string to allow filtering
         # of encrypted data vs. non-encrypted data using vanilla MySQL queries.
-        self.prefix = kwargs.pop('prefix', '')
+        self.prefix = kwargs.pop("prefix", "")
 
         # Allow for model decryption-only, bypassing encryption of data.
         # Useful for models that have a sparse amount of data that is required
         # to be encrypted.
-        self.decrypt_only = kwargs.pop('decrypt_only', False)
+        self.decrypt_only = kwargs.pop("decrypt_only", False)
 
         self.load_crypter()
 
         # Ensure the encrypted data does not exceed the max_length
         # of the database. Data truncation is a possibility otherwise.
-        self.enforce_max_length = getattr(
-            settings,
-            'ENFORCE_MAX_LENGTH',
-            False
-        )
+        self.enforce_max_length = getattr(settings, "ENFORCE_MAX_LENGTH", False)
         if not self.enforce_max_length:
-            self.enforce_max_length = kwargs.pop('enforce_max_length', False)
+            self.enforce_max_length = kwargs.pop("enforce_max_length", False)
 
         super(EncryptedFieldMixin, self).__init__(*args, **kwargs)
 
@@ -150,7 +142,7 @@ class EncryptedFieldMixin(object):
         return self._crypter
 
     def get_internal_type(self):
-        return 'TextField'
+        return "TextField"
 
     def load_crypter(self):
         self._crypter = self._crypter_klass(self.keydir)
@@ -163,7 +155,7 @@ class EncryptedFieldMixin(object):
             return value
 
         if self.prefix and value.startswith(self.prefix):
-            value = value[len(self.prefix):]
+            value = value[len(self.prefix) :]
 
         try:
             value = force_text(self.crypter().decrypt(value))
@@ -179,7 +171,7 @@ class EncryptedFieldMixin(object):
     def get_prep_value(self, value):
         value = super(EncryptedFieldMixin, self).get_prep_value(value)
 
-        if value is None or value == '' or self.decrypt_only:
+        if value is None or value == "" or self.decrypt_only:
             return value
 
         value = force_text(value)
@@ -192,15 +184,14 @@ class EncryptedFieldMixin(object):
 
             if self.enforce_max_length:
                 if (
-                    value and hasattr(self, 'max_length') and
-                    self.max_length and
-                    len(value) > self.max_length
+                    value
+                    and hasattr(self, "max_length")
+                    and self.max_length
+                    and len(value) > self.max_length
                 ):
                     raise ValueError(
-                        'Field {0} max_length={1} encrypted_len={2}'.format(
-                            self.name,
-                            self.max_length,
-                            len(value),
+                        "Field {0} max_length={1} encrypted_len={2}".format(
+                            self.name, self.max_length, len(value),
                         )
                     )
         return value
@@ -219,7 +210,6 @@ class EncryptedDateTimeField(EncryptedFieldMixin, models.DateTimeField):
 
 
 class EncryptedIntegerField(EncryptedFieldMixin, models.IntegerField):
-
     @cached_property
     def validators(self):
         """
@@ -227,7 +217,7 @@ class EncryptedIntegerField(EncryptedFieldMixin, models.IntegerField):
         Need to keep all field validators, but need to change
         `get_internal_type` on the fly to prevent fail in django 1.7.
         """
-        self.get_internal_type = lambda: 'IntegerField'
+        self.get_internal_type = lambda: "IntegerField"
         return models.IntegerField.validators.__get__(self)
 
 
@@ -249,7 +239,8 @@ class EncryptedBooleanField(EncryptedFieldMixin, models.BooleanField):
 
 try:
     from south.modelsinspector import add_introspection_rules
-    add_introspection_rules([], ['^encrypted_fields\.fields\.\w+Field'])
+
+    add_introspection_rules([], ["^encrypted_fields\.fields\.\w+Field"])
 
 except ImportError:
     pass
