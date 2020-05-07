@@ -28,6 +28,6 @@ setup(
     version=version,
     install_requires=[
         'Django>=1.4',
-        'python-keyczar>=0.71c',
+        'python3-keyczar>=0.71c',
     ],
 )
